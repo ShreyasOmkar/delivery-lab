@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: delivery-lab:local
+    container_name: delivery-lab
+    ports:
+      - "8080:8080"
+    environment:
+      APP_VERSION: "1.0.0-local"
+      WORK_DELAY: "0"
+      READY: "true"
+      PORT: "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - delivery-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # For demonstration - add a simple monitoring sidecar
+  monitor:
+    image: curlimages/curl:latest
+    container_name: delivery-monitor
+    command: ["/bin/sh", "-c", "while true; do curl -s http://app:8080/health/live && echo ' - OK' || echo ' - FAIL'; sleep 30; done"]
+    depends_on:
+      - app
+    networks:
+      - delivery-network
+    restart: unless-stopped
+
+networks:
+  delivery-network:
+    driver: bridge
